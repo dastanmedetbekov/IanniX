@@ -88,229 +88,68 @@ function onIncomingMessage(protocol, host, port, destination, values) {
  */
 function madeThroughGUI() {
 //GUI: NEVER EVER REMOVE THIS LINE
-	run("center 0 0");
-	run("zoom 165.332");
+	run("center 13.2502 6.89512");
 	run("rotate 0 0 0");
+	run("zoom 229.332");
+	run("speed 3.49");
 
 
-	run("add curve 3");
-	run("setpos current 0 0 0");
-	run("setequation current cartesian (5*param1+5*param2)*cos(50*param4*t*2*PI) + (5*param3)*cos((5*param1+5*param2)*50*param4*t*2*PI/(5*param2)),(5*param1+5*param2)*sin(50*param4*t*2*PI) + (5*param3)*sin((5*param1+5*param2)*50*param4*t*2*PI/(5*param2)),0");
-	run("setequationparam current param1 0.54");
-	run("setequationparam current param2 0.276");
-	run("setequationparam current param3 0.351");
-	run("setequationparam current param4 0.46");
-	run("setequationparam current param5 0");
-	run("setequationnbpoints current 2000");
-	run("setcoloractive current 44 167 218 128");
-	run("add cursor 54");
+	run("add curve 1");
+	run("setpos current 9.1524 1.7382 0");
+	var points1 = [
+		{x: 0, y: 0, z: 0, c1x: 0, c1y: 0, c1z: 0, c2x: 0, c2y: 0, c2z: 0},
+		{x: -0.0593891, y: 4.7313, z: 0, c1x: 0, c1y: 0, c1z: 0, c2x: 0, c2y: 0, c2z: 0},
+		{x: 2.41514, y: 0.178166, z: 0, c1x: 0, c1y: 0, c1z: 0, c2x: 0, c2y: 0, c2z: 0},
+		{x: 2.41514, y: 4.67192, z: 0, c1x: 0, c1y: 0, c1z: 0, c2x: 0, c2y: 0, c2z: 0},
+		{x: 5.32519, y: 0.197962, z: 0, c1x: 0, c1y: 0, c1z: 0, c2x: 0, c2y: 0, c2z: 0},
+		{x: 0, y: 0, z: 0, c1x: 0, c1y: 0, c1z: 0, c2x: 0, c2y: 0, c2z: 0},
+	];
+	for(var i = 0 ; i < points1.length ; i++)
+		run("setpointat current " + i + " " + points1[i].x + " " + points1[i].y + " " + points1[i].z + " " + points1[i].c1x + " " + points1[i].c1y + " " + points1[i].c1z + " " + points1[i].c2x + " " + points1[i].c2y + " " + points1[i].c2z);
+	run("add cursor 2");
 	run("setcurve current lastCurve");
-	run("setpos current 5.835 0 0");
-	run("setoffset current 0 0 end");
-	run("setspeed current lock 1.05343");
+	run("setpos current 9.0997 5.93672 0");
 	run("setpattern current 0 0 1");
-	run("setwidth current 1");
 
 
-	run("add trigger 7");
-	run("setpos current -1.86317 3.72553 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 4");
-	run("setpos current 5.835 0 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 5");
-	run("setpos current -5.19205 2.1805 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 14");
-	run("setpos current -2.94836 -4.86391 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 15");
-	run("setpos current 4.72076 3.42154 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 12");
-	run("setpos current 0.767797 -4.24306 0");
-	run("settriggeroff current 1");
+	run("add trigger 3");
+	run("setpos current 11.2112 3.40109 0");
 
 	run("add trigger 13");
-	run("setpos current 0.829902 5.08945 0");
-	run("settriggeroff current 1");
+	run("setpos current 9.09301 6.41012 0");
 
-	run("add trigger 10");
-	run("setpos current 1.07448 -2.2448 0");
-	run("settriggeroff current 1");
+	run("add trigger 12");
+	run("setpos current 11.5873 6.41012 0");
 
-	run("add trigger 11");
-	run("setpos current -1.3503 3.02345 0");
-	run("settriggeroff current 1");
+	run("add trigger 15");
+	run("setpos current 9.90466 4.84622 0");
 
-	run("add trigger 8");
-	run("setpos current 0.771448 -3.06821 0");
-	run("settriggeroff current 1");
+	run("add trigger 14");
+	run("setpos current 11.6467 4.29192 0");
 
 	run("add trigger 9");
-	run("setpos current -0.625905 2.33335 0");
-	run("settriggeroff current 1");
+	run("setpos current 11.4686 5.69745 0");
 
-	run("add trigger 52");
-	run("setpos current 0.448322 2.6062 0");
-	run("settriggeroff current 1");
+	run("add trigger 8");
+	run("setpos current 10.4985 3.75742 0");
 
-	run("add trigger 53");
-	run("setpos current -0.0239291 -2.3414 0");
-	run("settriggeroff current 1");
+	run("add trigger 11");
+	run("setpos current 10.6371 3.30211 0");
 
-	run("add trigger 50");
-	run("setpos current -0.878599 4.45575 0");
-	run("settriggeroff current 1");
+	run("add trigger 10");
+	run("setpos current 11.5082 3.12394 0");
 
-	run("add trigger 51");
-	run("setpos current -0.280634 -3.54652 0");
-	run("settriggeroff current 1");
+	run("add trigger 5");
+	run("setpos current 11.6863 4.72744 0");
 
-	run("add trigger 48");
-	run("setpos current -4.64644 3.40459 0");
-	run("settriggeroff current 1");
+	run("add trigger 4");
+	run("setpos current 11.5082 3.97518 0");
 
-	run("add trigger 49");
-	run("setpos current 2.77803 -4.53696 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 38");
-	run("setpos current -0.437292 -5.39248 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 39");
-	run("setpos current 2.00448 4.22517 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 36");
-	run("setpos current 3.76611 -4.37614 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 37");
-	run("setpos current -1.77231 5.51511 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 34");
-	run("setpos current 4.56377 -0.515377 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 35");
-	run("setpos current -4.77397 2.42528 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 32");
-	run("setpos current 2.58641 0.724831 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 33");
-	run("setpos current -3.56425 -0.603864 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 46");
-	run("setpos current -5.37241 -0.867228 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 47");
-	run("setpos current 5.64629 -1.33839 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 44");
-	run("setpos current -2.56786 -2.75808 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 45");
-	run("setpos current 4.09026 2.36701 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 42");
-	run("setpos current -1.54909 -1.73432 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 43");
-	run("setpos current 1.60506 2.30103 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 40");
-	run("setpos current -2.4847 -2.75629 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 41");
-	run("setpos current 2.09372 1.79733 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 22");
-	run("setpos current -3.05599 1.62725 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 23");
-	run("setpos current 3.25585 -3.04027 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 20");
-	run("setpos current -1.95718 1.32456 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 21");
-	run("setpos current 2.35313 -1.05695 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 18");
-	run("setpos current -3.59507 1.78957 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 19");
-	run("setpos current 2.40025 -1.83481 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 16");
-	run("setpos current -5.41822 -1.27466 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 17");
-	run("setpos current 4.87918 -0.702816 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 30");
-	run("setpos current 2.88481 0.072475 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 31");
-	run("setpos current -2.31527 -0.285077 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 28");
-	run("setpos current 4.23667 2.26908 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 29");
-	run("setpos current -3.79732 -0.714869 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 26");
-	run("setpos current 1.80974 5.52754 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 27");
-	run("setpos current -3.58263 -4.163 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 24");
-	run("setpos current -2.38177 4.68929 0");
-	run("settriggeroff current 1");
-
-	run("add trigger 25");
-	run("setpos current 0.475309 -5.71548 0");
-	run("settriggeroff current 1");
+	run("add trigger 7");
+	run("setpos current 10.3006 4.29192 0");
 
 	run("add trigger 6");
-	run("setpos current 3.59959 -3.53704 0");
-	run("settriggeroff current 1");
+	run("setpos current 11.5082 3.75742 0");
 
 
 
@@ -327,7 +166,7 @@ function madeThroughGUI() {
 function madeThroughInterfaces() {
 //INTERFACES: NEVER EVER REMOVE THIS LINE
 	run("rotate 0 0 0");
-	run("speed 1");
+	run("speed 3.49");
 
 
 //INTERFACES: NEVER EVER REMOVE THIS LINE
@@ -347,7 +186,7 @@ function alterateWithScript() {
 
 /*
  *	//APP VERSION: NEVER EVER REMOVE THIS LINE
- *	Made with IanniX 0.9.18
+ *	Made with IanniX 0.9.20
  *	//APP VERSION: NEVER EVER REMOVE THIS LINE
  */
 

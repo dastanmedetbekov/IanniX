@@ -1,0 +1,197 @@
+/*
+    IanniX Test Score — MIDI Test
+    
+    Этот скрипт создаёт простую тестовую конфигурацию для проверки
+    исправленного модуля InterfaceMidi.
+    
+    Что делает скрипт:
+    - Создаёт круговую кривую
+    - Запускает курсор по кривой
+    - Размещает 8 триггеров с разными нотами
+    - Каждый триггер отправляет Note On с уникальной нотой
+    
+    Как использовать:
+    1. Запустите IanniX
+    2. File → Open → выберите этот файл
+    3. Включите MIDI в Transport panel
+    4. Выберите MIDI-порт в настройках
+    5. Запустите MIDI-монитор (aseqdump или MIDI-OX)
+    6. Нажмите Play в IanniX
+    7. Вы должны услышать/увидеть ноты C-major scale
+*/
+
+function makeScore() {
+    // Очистка сцены
+    run("clear");
+    run("rotate 0 0 0");
+    run("zoom 120");
+    run("center 0 0");
+    
+    // Параметры
+    var centerX = 0;
+    var centerY = 0;
+    var radius = 5;
+    var numTriggers = 8;
+    
+    // Создание круговой кривой (ID: 1)
+    run("add curve 1");
+    run("setPos current " + centerX + " " + centerY + " 0");
+    
+    // Создание круга через точки
+    var points = 24;
+    var pathString = "";
+    for(var i = 0; i <= points; i++) {
+        var angle = (i / points) * 2 * Math.PI;
+        var x = Math.cos(angle) * radius;
+        var y = Math.sin(angle) * radius;
+        pathString += x + " " + y + " 0 ";
+    }
+    run("setPointsEllipse current " + pathString);
+    run("setGroup current lines");
+    run("setColor current 100 255 100 255");
+    
+    // Создание курсора (ID: 2)
+    run("add cursor 2");
+    run("setCurve current lastCurve");
+    run("setSpeed current 1");  // 1 секунда на оборот
+    run("setWidth current 0.5");
+    run("setColor current 255 100 100 255");
+    run("setPattern current 0 0 1");  // Постоянное движение в цикле
+    
+    // C-major scale notes (MIDI note numbers)
+    var notes = [60, 62, 64, 65, 67, 69, 71, 72];  // C, D, E, F, G, A, B, C
+    var noteNames = ["C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"];
+    
+    // Создание триггеров с нотами
+    for(var i = 0; i < numTriggers; i++) {
+        var triggerId = 10 + i;
+        var cursorPos = i / numTriggers;
+        
+        run("add trigger " + triggerId);
+        run("setCurve current 1");
+        run("setCursorPos current " + cursorPos);
+        run("setSize current 0.3");
+        run("setColor current 255 255 100 255");
+        run("setLabel current " + noteNames[i]);
+        
+        // MIDI сообщение: канал 1, нота, velocity 100, длительность 0.1 сек
+        run("setMessage current 20, midi note 1 " + notes[i] + " 100 0.1");
+    }
+    
+    // Настройка транспорта
+    run("setScheduler 1");  // Включить schedule
+    run("setSpeed 1");      // Нормальная скорость
+}
+
+/*
+    Дополнительные тесты:
+*/
+
+// Тест 2: Control Change (CC)
+function testCC() {
+    run("clear");
+    
+    // Создание линии
+    run("add curve 1");
+    run("setPos current -5 0 0");
+    run("setPointsLines current 0 0 0 10 0 0");
+    run("setColor current 100 255 255 255");
+    
+    // Курсор
+    run("add cursor 2");
+    run("setCurve current lastCurve");
+    run("setSpeed current 2");
+    run("setColor current 255 100 255 255");
+    
+    // Триггеры с CC (например, modulation wheel)
+    for(var i = 0; i <= 10; i++) {
+        var triggerId = 10 + i;
+        var cursorPos = i / 10;
+        var ccValue = Math.floor((i / 10) * 127);
+        
+        run("add trigger " + triggerId);
+        run("setCurve current 1");
+        run("setCursorPos current " + cursorPos);
+        run("setSize current 0.2");
+        run("setLabel current CC:" + ccValue);
+        
+        // MIDI CC: канал 1, контроллер 1 (modulation), значение
+        run("setMessage current 20, midi cc 1 1 " + ccValue);
+    }
+}
+
+// Тест 3: Program Change
+function testPGM() {
+    run("clear");
+    
+    // Создание спирали
+    run("add curve 1");
+    run("setPos current 0 0 0");
+    
+    var spiralPoints = "";
+    for(var i = 0; i <= 100; i++) {
+        var angle = (i / 100) * 4 * Math.PI;
+        var radius = (i / 100) * 5;
+        var x = Math.cos(angle) * radius;
+        var y = Math.sin(angle) * radius;
+        spiralPoints += x + " " + y + " 0 ";
+    }
+    run("setPointsEllipse current " + spiralPoints);
+    run("setColor current 255 200 100 255");
+    
+    // Курсор
+    run("add cursor 2");
+    run("setCurve current lastCurve");
+    run("setSpeed current 3");
+    
+    // Триггеры с Program Change (смена инструментов)
+    var programs = [0, 25, 40, 56, 73];  // Piano, Guitar, Strings, Trumpet, Flute
+    var programNames = ["Piano", "Guitar", "Strings", "Trumpet", "Flute"];
+    
+    for(var i = 0; i < programs.length; i++) {
+        var triggerId = 10 + i;
+        var cursorPos = i / (programs.length - 1);
+        
+        run("add trigger " + triggerId);
+        run("setCurve current 1");
+        run("setCursorPos current " + cursorPos);
+        run("setSize current 0.4");
+        run("setLabel current " + programNames[i]);
+        
+        // MIDI Program Change: канал 1, программа
+        run("setMessage current 20, midi pgm 1 " + programs[i]);
+    }
+}
+
+// Запуск основного теста при загрузке
+makeScore();
+
+/*
+    Инструкции по использованию:
+    
+    1. Основной тест (ноты):
+       - Просто откройте этот файл
+       - Нажмите Play
+       - Слушайте C-major scale
+    
+    2. Тест CC:
+       - В консоли IanniX выполните: testCC()
+       - Нажмите Play
+       - Наблюдайте изменение Modulation (CC#1) от 0 до 127
+    
+    3. Тест Program Change:
+       - В консоли IanniX выполните: testPGM()
+       - Нажмите Play
+       - Слушайте смену инструментов
+    
+    Для мониторинга MIDI:
+    - Linux: aseqdump -p "From IanniX"
+    - macOS: MIDI Monitor app
+    - Windows: MIDI-OX
+    
+    В IanniX:
+    1. Откройте Transport panel (View → Transport)
+    2. Включите MIDI (кнопка MIDI)
+    3. Настройте порт (MIDI Settings → Port Alias)
+    4. Запустите (Play button)
+*/

@@ -1,4 +1,4 @@
-/*
+ /* 
 	IanniX score example: Fractals (c) by IanniX Association
 	This file was written by Guillaume Jacquemin.
 	
@@ -84,6 +84,7 @@ function addCurve(recursion, start, end) {
 			run("setGroup        current triggers");
 			run("setPos          current " + ((end.x-start.x)/2 + start.x) + " " + ((end.y-start.y)/2 + start.y) + " 0");
 		}
+
 		
 		//Recursivity on segments
 		addCurve(recursion + 1, {x:      start.x, y:      start.y} , {x: x1 + start.x, y: y1 + start.y});
@@ -93,10 +94,20 @@ function addCurve(recursion, start, end) {
 	}
 }
 
+if(index % 5 == 4) {
+    run("add trigger " + (2000 + index));
+    run("setSize current 2");
+    run("setGroup current triggers");
+    run("setPos current " + ((end.x-start.x)/2 + start.x) + " " + ((end.y-start.y)/2 + start.y) + " 0");
+    
+    var note = 60 + (index % 12); 
+    run("setMessage current 20, midi://midi_out/note 1 " + note + " 100 0.1");
+}
+
 
 /*
  *	//APP VERSION: NEVER EVER REMOVE THIS LINE
- *	Made with IanniX 0.9.0
+ *	Made with IanniX 0.9.20
  *	//APP VERSION: NEVER EVER REMOVE THIS LINE
  */
 
