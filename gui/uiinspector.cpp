@@ -202,6 +202,38 @@ UiInspector::UiInspector(QWidget *parent) :
     //needRefresh = true;
     startTimer(100);
 
+    // Initialize MIDI trigger settings panel
+    ui->midiTriggerSettings->setVisible(false);
+    
+    // Populate MIDI note combo box with correct MIDI standard (C4 = 60)
+    ui->midiNoteCombo->clear();
+    const char* noteNames[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+    for(int octave = -1; octave <= 9; octave++) {
+        for(int note = 0; note < 12; note++) {
+            int midiNote = (octave + 1) * 12 + note;
+            if(midiNote >= 0 && midiNote <= 127) {
+                QString noteName = QString("%1%2").arg(noteNames[note]).arg(octave);
+                ui->midiNoteCombo->addItem(QString("%1 (%2)").arg(noteName).arg(midiNote), midiNote);
+            }
+        }
+    }
+
+    ui->midiNoteCombo->setCurrentIndex(ui->midiNoteCombo->findData(60));
+    
+    // Populate MIDI channel combo box (1-16)
+    ui->midiChannelCombo->clear();
+    for(int channel = 1; channel <= 16; channel++) {
+        ui->midiChannelCombo->addItem(QString("Channel %1").arg(channel), channel);
+    }
+    ui->midiChannelCombo->setCurrentIndex(0); // Default to channel 1
+    
+    connect(ui->midiVelocitySlider, SIGNAL(valueChanged(int)), ui->midiVelocitySpin, SLOT(setValue(int)));
+    connect(ui->midiVelocitySpin, SIGNAL(valueChanged(int)), ui->midiVelocitySlider, SLOT(setValue(int)));
+    
+    connect(ui->midiApplyButton, SIGNAL(clicked()), SLOT(actionMidiApply()));
+    
+    connect(ui->midiTriggerEnable, SIGNAL(toggled(bool)), SLOT(actionMidiEnableToggle(bool)));
+
     refresh();
     refreshIp();
 }
@@ -437,6 +469,87 @@ void UiInspector::actionMessages() {
             }
     }
 }
+
+void UiInspector::actionMidiApply() {
+    if(!ui->midiTriggerEnable->isChecked()) {
+        (new UiMessageBox())->display(tr("MIDI Settings"), tr("Please enable 'Enable MIDI Output' checkbox first."));
+        return;
+    }
+    
+    // Check if at least one parameter is selected
+    if(!ui->midiNoteCheck->isChecked() && !ui->midiVelocityCheck->isChecked() && 
+       !ui->midiDurationCheck->isChecked() && !ui->midiChannelCheck->isChecked()) {
+        (new UiMessageBox())->display(tr("MIDI Settings"), tr("Please select at least one parameter to apply (use checkboxes)."));
+        return;
+    }
+    
+    // Get selected triggers
+    if(render->getSelection()->count() == 0) {
+        (new UiMessageBox())->display(tr("MIDI Settings"), tr("Please select at least one trigger."));
+        return;
+    }
+    
+    // Check if selection contains only triggers
+    bool hasOnlyTriggers = true;
+    foreach(const NxObject *object, *(render->getSelection())) {
+        if(object->getType() != ObjectsTypeTrigger) {
+            hasOnlyTriggers = false;
+            break;
+        }
+    }
+    
+    if(!hasOnlyTriggers) {
+        (new UiMessageBox())->display(tr("MIDI Settings"), tr("MIDI settings can only be applied to triggers.\nPlease select triggers only."));
+        return;
+    }
+    
+    // Get current values from GUI
+    int midiNote = ui->midiNoteCombo->currentData().toInt();
+    int velocity = ui->midiVelocitySpin->value();
+    int duration = ui->midiDurationSpin->value();
+    int channel = ui->midiChannelCombo->currentData().toInt();
+    
+    // Build MIDI command with only selected parameters
+    // For parameters not checked, we need to read current values from first selected trigger
+    NxTrigger *firstTrigger = (NxTrigger*)render->getSelection()->first();
+    QString currentMessage = firstTrigger->getMessagePatternsStr();
+    
+    // Parse current MIDI command to get existing values
+    int existingChannel = 1, existingNote = 60, existingVelocity = 100, existingDuration = 500;
+    if(currentMessage.contains("midi://")) {
+        QStringList parts = currentMessage.split(" ", QString::SkipEmptyParts);
+        if(parts.count() >= 5) {
+            existingChannel = parts[1].toInt();
+            existingNote = parts[2].toInt();
+            existingVelocity = parts[3].toInt();
+            existingDuration = parts[4].toInt();
+        }
+    }
+    
+    // Use selected or existing values
+    int finalChannel = ui->midiChannelCheck->isChecked() ? channel : existingChannel;
+    int finalNote = ui->midiNoteCheck->isChecked() ? midiNote : existingNote;
+    int finalVelocity = ui->midiVelocityCheck->isChecked() ? velocity : existingVelocity;
+    int finalDuration = ui->midiDurationCheck->isChecked() ? duration : existingDuration;
+    
+    // Generate and apply setMessage command
+    QString midiCommand = QString("midi://midi_out/note %1 %2 %3 %4")
+        .arg(finalChannel).arg(finalNote).arg(finalVelocity).arg(finalDuration);
+    
+    Application::current->pushSnapshot();
+    Application::current->execute(QString("%1 selection 21, %2").arg(COMMAND_MESSAGE).arg(midiCommand), ExecuteSourceGui);
+    
+    needRefresh = true;
+}
+
+void UiInspector::actionMidiEnableToggle(bool enabled) {
+    ui->midiNoteCombo->setEnabled(enabled);
+    ui->midiVelocitySlider->setEnabled(enabled);
+    ui->midiVelocitySpin->setEnabled(enabled);
+    ui->midiDurationSpin->setEnabled(enabled);
+    ui->midiApplyButton->setEnabled(enabled);
+}
+
 
 void UiInspector::setMousePos(const NxPoint & pos) {
     mousePos = tr("MOUSE:") + QString(" %1 s. / %2 s.").arg(pos.x(), 0, 'f', 3).arg(pos.y(), 0, 'f', 3);
@@ -727,6 +840,9 @@ void UiInspector::refresh() {
     ui->textureLabel2->setVisible(showCursorInfo | showTriggerInfo);
     ui->textureCombo1->setVisible(showCursorInfo | showTriggerInfo);
     ui->textureCombo2->setVisible(showCursorInfo | showTriggerInfo);
+    
+    // Show MIDI trigger settings only for triggers
+    ui->midiTriggerSettings->setVisible(showTriggerInfo && !showCursorInfo && !showCurveInfo);
 
     ui->widthSpin->setVisible(showCursorInfo);
     ui->depthSpin->setVisible(showCursorInfo);

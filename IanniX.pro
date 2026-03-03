@@ -237,10 +237,11 @@ unix {
 }
 linux* {
     DEFINES                  += __LINUX_ALSA__
+    DEFINES                  += __UNIX_JACK__
     DEFINES                  += AVOID_TIMESTAMPING
     DEFINES                  += __linux__
-    LIBS                     += -lasound
-    PKGCONFIG                += alsa
+    LIBS                     += -lasound -ljack
+    PKGCONFIG                += alsa jack
     !qesp_linux_udev:DEFINES += QESP_NO_UDEV
     qesp_linux_udev: LIBS    += -ludev
 }

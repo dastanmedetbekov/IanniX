@@ -67,6 +67,8 @@ public slots:
     void actionTexture();
     void actionInfoGroup();
     void actionMessages();
+    void actionMidiApply();
+    void actionMidiEnableToggle(bool enabled);
 
     QPair<QList<NxGroup *>, UiRenderSelection> getSelectedCCObject() const;
     QTreeWidgetItem *getObjectRootItem() const;

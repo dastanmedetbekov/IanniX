@@ -1,4 +1,4 @@
-лов/*
+/*
     This file is part of IanniX, a graphical real-time open-source sequencer for digital art
     Copyright (C) 2010-2015 — IanniX Association
 
@@ -414,7 +414,7 @@ bool InterfaceOsc::send(const Message &message, QStringList *messageSent) {
         bundleMessages.append(message);
     }
     else {
-с        qint64 bytesSent = socket->writeDatagram(message.getBuffer(), message.getHost(), message.getPort());
+        qint64 bytesSent = socket->writeDatagram(message.getBuffer(), message.getHost(), message.getPort());
         if (bytesSent == -1) {
             qWarning() << "OSC send error:" << socket->errorString()
                        << "Host:" << message.getHost()
