@@ -61,6 +61,10 @@ macx {
     CONFIG  += x86 x86_64
 }
 
+OBJECTS_DIR = build
+MOC_DIR     = build
+UI_DIR      = build
+RCC_DIR     = build
 
 TARGET    = IanniX
 TEMPLATE  = app
