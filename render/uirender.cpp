@@ -677,6 +677,33 @@ void UiRender::mousePressEvent(QMouseEvent *event) {
     if(cursor().shape() == Qt::BlankCursor)
         return;
 
+    // Ctrl+Click on curve: create cursor and attach to curve
+    if(mouseControl && selectedHover && selectedHover->getType() == ObjectsTypeCurve && !Render::editing) {
+        NxCurve *curve = (NxCurve*)selectedHover;
+        quint16 cursorId = Application::current->execute("add cursor auto", ExecuteSourceGui).toUInt();
+        Application::current->execute(QString("%1 %2 %3").arg(COMMAND_CURSOR_CURVE).arg(cursorId).arg(curve->getId()), ExecuteSourceGui);
+        
+        // Try to find the approximate position on the curve where the mouse clicked
+        // Use intersects to find collision point and offset
+        NxPoint collisionPoint;
+        qreal clickOffset = curve->intersects(NxRect(mousePressedAreaPos - NxPoint(0.1, 0.1), mousePressedAreaPos + NxPoint(0.1, 0.1)), &collisionPoint);
+        
+        if(clickOffset >= 0 && clickOffset <= 1.0) {
+            // Found intersection - position cursor at click location
+            qreal absoluteOffset = clickOffset * curve->getMaxOffset();
+            Application::current->execute(QString("%1 %2 %3 0 end").arg(COMMAND_CURSOR_OFFSET).arg(cursorId).arg(absoluteOffset), ExecuteSourceGui);
+        } else {
+            // No intersection found - position at middle of curve
+            Application::current->execute(QString("%1 %2 %3 0 end").arg(COMMAND_CURSOR_OFFSET).arg(cursorId).arg(curve->getMaxOffset() / 2), ExecuteSourceGui);
+        }
+        
+        // Activate cursor (make it ready to work)
+        Application::current->execute(QString("%1 %2 0 0 1").arg(COMMAND_CURSOR_START).arg(cursorId), ExecuteSourceGui);
+        
+        changeStatus(QString("Cursor %1 created on curve %2").arg(cursorId).arg(curve->getId()));
+        return;
+    }
+
     //Start area selection
     if((Render::editing) && (Application::allowSelection)) {
         foreach(NxObject *selected, selection)
@@ -992,6 +1019,385 @@ void UiRender::keyPressEvent(QKeyEvent *event) {
 
     if((event->modifiers() & Qt::ShiftModifier) == Qt::ShiftModifier)
         translationUnit = 1;
+
+    // Keyboard note input for selected triggers (layout-independent physical keys)
+    static int currentOctave = 4; // Default octave (C4 = 60)
+    if(selection.count() > 0) {
+        // Check if all selected objects are triggers
+        bool allTriggers = true;
+        foreach(const NxObject *object, selection) {
+            if(object->getType() != ObjectsTypeTrigger) {
+                allTriggers = false;
+                break;
+            }
+        }
+        
+        if(allTriggers) {
+            int noteOffset = -1;
+            bool octaveChanged = false;
+            bool velocityChanged = false;
+            int velocityDelta = 0;
+            bool durationChanged = false;
+            int durationDelta = 0;
+            
+            // Use physical scan codes for keyboard layout independence
+            quint32 scanCode = event->nativeScanCode();
+            
+            // Debug: log scan code for troubleshooting keyboard layout issues
+            qDebug("[KEYBOARD] Scan code: %d, Key: %s", scanCode, qPrintable(QKeySequence(event->key()).toString()));
+            
+            // Linux scan codes (QWERTY physical positions, independent of layout)
+            // Bottom row: ASDFGHJK = white keys (C D E F G A B C)
+            // Top row: WETYUIO = black keys (C# D# F# G# A#)
+            // Bottom row: ZX = octave control, CV = velocity control, NM = duration control
+            switch(scanCode) {
+                // White keys (ASDFGHJK)
+                case 38: noteOffset = 0; break;   // A = C
+                case 39: noteOffset = 2; break;   // S = D
+                case 40: noteOffset = 4; break;   // D = E
+                case 41: noteOffset = 5; break;   // F = F
+                case 42: noteOffset = 7; break;   // G = G
+                case 43: noteOffset = 9; break;   // H = A
+                case 44: noteOffset = 11; break;  // J = B
+                case 45: noteOffset = 12; break;  // K = C (next octave)
+                
+                // Black keys (WETYUIO)
+                case 25: noteOffset = 1; break;   // W = C#
+                case 26: noteOffset = 3; break;   // E = D#
+                case 27: noteOffset = 3; break;   // R = D# (alternative for some layouts)
+                case 28: noteOffset = 6; break;   // T = F#
+                case 29: noteOffset = 8; break;   // Y = G#
+                case 30: noteOffset = 10; break;  // U = A#
+                case 31: noteOffset = 12; break;  // I = C (next octave)
+                case 32: noteOffset = 12; break;  // O = C (next octave, alternative)
+                
+                // Octave control (Z/X)
+                case 52: // Z - decrease octave
+                    if(currentOctave > -1) {
+                        currentOctave--;
+                        octaveChanged = true;
+                    }
+                    break;
+                case 53: // X - increase octave
+                    if(currentOctave < 9) {
+                        currentOctave++;
+                        octaveChanged = true;
+                    }
+                    break;
+                
+                // Velocity control (C/V)
+                case 54: // C - decrease velocity
+                    velocityDelta = -5;
+                    velocityChanged = true;
+                    break;
+                case 55: // V - increase velocity
+                    velocityDelta = +5;
+                    velocityChanged = true;
+                    break;
+                
+                // Duration control (N/M)
+                case 57: // N - decrease duration
+                    durationDelta = -50;
+                    durationChanged = true;
+                    break;
+                case 58: // M - increase duration
+                    durationDelta = +50;
+                    durationChanged = true;
+                    break;
+                
+                default:
+                    // Unknown scan code - do nothing to prevent unintended behavior
+                    break;
+            }
+            
+            // Only process if we actually changed something
+            if(!octaveChanged && !velocityChanged && !durationChanged && noteOffset < 0) {
+                // Not a music input key, let other handlers process it
+                // Don't accept the event
+                goto skipMusicInput;
+            }
+            
+            if(octaveChanged) {
+                changeStatus(QString("Octave: %1").arg(currentOctave));
+                event->accept();
+                return;
+            }
+            
+            if(velocityChanged) {
+                // Check if any selected trigger has MIDI message
+                bool hasMidiTrigger = false;
+                foreach(const NxObject *object, selection) {
+                    NxTrigger *trigger = (NxTrigger*)object;
+                    if(trigger->getMessagePatternsStr().contains("midi://")) {
+                        hasMidiTrigger = true;
+                        break;
+                    }
+                }
+                if(!hasMidiTrigger) {
+                    changeStatus(QString("No MIDI triggers selected"));
+                    event->accept();
+                    return;
+                }
+                
+                Application::current->pushSnapshot();
+                // Change velocity for all selected triggers
+                // NOTE: This switches from DYNAMIC to FIXED velocity
+                bool hadDynamicVelocity = false;
+                foreach(NxObject *object, selection) {
+                    NxTrigger *trigger = (NxTrigger*)object;
+                    QString currentMessage = trigger->getMessagePatternsStr();
+                    
+                    int channel = 1, note = 60, velocity = 100, duration = 500;
+                    bool isDynamic = false;
+                    if(currentMessage.contains("midi://")) {
+                        QStringList parts = currentMessage.split(" ", QString::SkipEmptyParts);
+                        // Format: "interval, midi://midi_out/note channel note velocity duration"
+                        // parts[0]=interval, parts[1]=midi://, parts[2]=channel, parts[3]=note, parts[4]=velocity, parts[5]=duration
+                        if(parts.count() >= 6) {
+                            channel = parts[2].toInt();
+                            note = parts[3].toInt();
+                            
+                            // Check if velocity is dynamic (contains trigger_)
+                            if(parts[4].contains("trigger_")) {
+                                velocity = 100; // Default for switching from dynamic to fixed
+                                isDynamic = true;
+                                hadDynamicVelocity = true;
+                            } else {
+                                velocity = parts[4].toInt();
+                            }
+                            
+                            // Preserve duration (could be dynamic or fixed)
+                            if(parts[5].contains("trigger_")) {
+                                duration = 500; // Keep default
+                            } else {
+                                duration = parts[5].toInt();
+                                if(duration <= 0) duration = 500;
+                            }
+                        }
+                    }
+                    
+                    int oldVelocity = velocity;
+                    velocity = qBound(1, velocity + velocityDelta, 127);
+                    
+                    // Create FIXED velocity command - use /note for fixed numeric values
+                    QString midiCommand = QString("midi://midi_out/note %1 %2 %3 %4")
+                        .arg(channel).arg(note).arg(velocity).arg(duration);
+                    
+                    Application::current->execute(QString("%1 %2 21, %3").arg(COMMAND_MESSAGE).arg(trigger->getId()).arg(midiCommand), ExecuteSourceGui);
+                    qDebug("[VELOCITY] Trigger %d: %s %d -> %d", trigger->getId(), isDynamic ? "dynamic" : "fixed", oldVelocity, velocity);
+                }
+                // Show average velocity across all selected triggers
+                int avgVelocity = 0;
+                int count = 0;
+                foreach(NxObject *object, selection) {
+                    NxTrigger *trigger = (NxTrigger*)object;
+                    QString msg = trigger->getMessagePatternsStr();
+                    if(msg.contains("midi://")) {
+                        QStringList parts = msg.split(" ", QString::SkipEmptyParts);
+                        if(parts.count() >= 6) {
+                            // parts[4] might be a number or "trigger_value_x" string
+                            bool ok;
+                            int vel = parts[4].toInt(&ok);
+                            if(ok) {
+                                avgVelocity += vel;
+                                count++;
+                            }
+                        }
+                    }
+                }
+                if(count > 0) avgVelocity /= count;
+                QString statusMsg = QString("Velocity: %1%2 (now %3)")
+                    .arg(velocityDelta > 0 ? "+" : "").arg(velocityDelta).arg(avgVelocity);
+                if(hadDynamicVelocity) {
+                    statusMsg += " [switched to FIXED]";
+                }
+                changeStatus(statusMsg);
+                event->accept();
+                return;
+            }
+            
+            if(durationChanged) {
+                // Check if any selected trigger has MIDI message
+                bool hasMidiTrigger = false;
+                foreach(const NxObject *object, selection) {
+                    NxTrigger *trigger = (NxTrigger*)object;
+                    if(trigger->getMessagePatternsStr().contains("midi://")) {
+                        hasMidiTrigger = true;
+                        break;
+                    }
+                }
+                if(!hasMidiTrigger) {
+                    changeStatus(QString("No MIDI triggers selected"));
+                    event->accept();
+                    return;
+                }
+                
+                Application::current->pushSnapshot();
+                // Change duration for all selected triggers
+                // NOTE: This switches from DYNAMIC to FIXED duration
+                bool hadDynamicDuration = false;
+                foreach(NxObject *object, selection) {
+                    NxTrigger *trigger = (NxTrigger*)object;
+                    QString currentMessage = trigger->getMessagePatternsStr();
+                    
+                    int channel = 1, note = 60, velocity = 100, duration = 500;
+                    QString velocitySource = QString::number(velocity);
+                    bool isDynamicDuration = false;
+                    
+                    if(currentMessage.contains("midi://")) {
+                        QStringList parts = currentMessage.split(" ", QString::SkipEmptyParts);
+                        // Format: "interval, midi://midi_out/note channel note velocity duration"
+                        // parts[0]=interval, parts[1]=midi://, parts[2]=channel, parts[3]=note, parts[4]=velocity, parts[5]=duration
+                        if(parts.count() >= 6) {
+                            channel = parts[2].toInt();
+                            note = parts[3].toInt();
+                            
+                            // Preserve velocity (could be dynamic or fixed)
+                            if(parts[4].contains("trigger_")) {
+                                velocitySource = parts[4]; // Keep dynamic source
+                            } else {
+                                velocity = parts[4].toInt();
+                                velocitySource = QString::number(velocity);
+                            }
+                            
+                            // Check if duration is dynamic
+                            if(parts[5].contains("trigger_")) {
+                                duration = 500; // Default for switching from dynamic to fixed
+                                isDynamicDuration = true;
+                                hadDynamicDuration = true;
+                            } else {
+                                duration = parts[5].toInt();
+                                if(duration <= 0) duration = 500;
+                            }
+                        }
+                    }
+                    
+                    int oldDuration = duration;
+                    duration = qMax(10, duration + durationDelta);  // Minimum 10ms
+                    
+                    // Use /notef if velocity is dynamic, /note if both are fixed
+                    QString cmdType = velocitySource.contains("trigger_") ? "notef" : "note";
+                    QString midiCommand = QString("midi://midi_out/%1 %2 %3 %4 %5")
+                        .arg(cmdType).arg(channel).arg(note).arg(velocitySource).arg(duration / 1000.0);
+                    
+                    Application::current->execute(QString("%1 %2 21, %3").arg(COMMAND_MESSAGE).arg(trigger->getId()).arg(midiCommand), ExecuteSourceGui);
+                    qDebug("[DURATION] Trigger %d: %s %d -> %d ms (using /%s)", trigger->getId(), isDynamicDuration ? "dynamic" : "fixed", oldDuration, duration, qPrintable(cmdType));
+                }
+                // Show average duration across all selected triggers
+                int avgDuration = 0;
+                int count = 0;
+                foreach(NxObject *object, selection) {
+                    NxTrigger *trigger = (NxTrigger*)object;
+                    QString msg = trigger->getMessagePatternsStr();
+                    if(msg.contains("midi://")) {
+                        QStringList parts = msg.split(" ", QString::SkipEmptyParts);
+                        if(parts.count() >= 6) {
+                            // parts[5] might be a number or "trigger_duration" string
+                            bool ok;
+                            int dur = parts[5].toInt(&ok);
+                            if(ok) {
+                                avgDuration += dur;
+                                count++;
+                            }
+                        }
+                    }
+                }
+                if(count > 0) avgDuration /= count;
+                QString statusMsg = QString("Duration: %1%2 ms (now %3 ms)")
+                    .arg(durationDelta > 0 ? "+" : "").arg(durationDelta).arg(avgDuration);
+                if(hadDynamicDuration) {
+                    statusMsg += " [switched to FIXED]";
+                }
+                changeStatus(statusMsg);
+                event->accept();
+                return;
+            }
+            
+            if(noteOffset >= 0) {
+                // Check if any selected trigger has MIDI message
+                bool hasMidiTrigger = false;
+                foreach(const NxObject *object, selection) {
+                    NxTrigger *trigger = (NxTrigger*)object;
+                    if(trigger->getMessagePatternsStr().contains("midi://")) {
+                        hasMidiTrigger = true;
+                        break;
+                    }
+                }
+                if(!hasMidiTrigger) {
+                    changeStatus(QString("No MIDI triggers selected"));
+                    event->accept();
+                    return;
+                }
+                
+                // Calculate MIDI note: currentOctave maps to MIDI octave (e.g., octave 4 = C4 = MIDI 60)
+                // Formula: currentOctave * 12 + noteOffset
+                int newMidiNote = currentOctave * 12 + noteOffset;
+                if(newMidiNote >= 0 && newMidiNote <= 127) {
+                    Application::current->pushSnapshot();
+                    
+                    // Apply to each trigger individually, preserving its own parameters
+                    foreach(NxObject *object, selection) {
+                        NxTrigger *trigger = (NxTrigger*)object;
+                        QString currentMessage = trigger->getMessagePatternsStr();
+                        
+                        int channel = 1;
+                        QString velocitySource = "trigger_value_x";  // Dynamic velocity from X position
+                        QString durationSource = "trigger_duration"; // Dynamic duration
+                        
+                        // Parse existing message to preserve channel and check format
+                        if(currentMessage.contains("midi://")) {
+                            QStringList parts = currentMessage.split(" ", QString::SkipEmptyParts);
+                            // Format: "interval, midi://midi_out/note channel note velocity duration"
+                            if(parts.count() >= 6) {
+                                channel = parts[2].toInt();
+                                // Check if velocity/duration are dynamic (contain trigger_)
+                                if(parts[4].contains("trigger_"))
+                                    velocitySource = parts[4];
+                                if(parts[5].contains("trigger_"))
+                                    durationSource = parts[5];
+                            }
+                        }
+                        
+                        // Create MIDI command with FIXED note but DYNAMIC velocity (X position)
+                        // This preserves "drawn music" philosophy for expression while giving pitch control
+                        // Use /notef format with normalized note value (note/127.0)
+                        QString midiCommand = QString("midi://midi_out/notef %1 %2 %3 %4")
+                            .arg(channel)
+                            .arg(newMidiNote / 127.0, 0, 'f', 4)  // Normalize: 0-127 -> 0.0-1.0
+                            .arg(velocitySource)     // Dynamic: trigger_value_x (already 0-1)
+                            .arg(durationSource);     // Dynamic: trigger_duration
+                        
+                        Application::current->execute(QString("%1 %2 21, %3")
+                            .arg(COMMAND_MESSAGE).arg(trigger->getId()).arg(midiCommand), ExecuteSourceGui);
+                    }
+                    
+                    // Display note name with correct octave
+                    // MIDI octave calculation: octaveNumber = (midiNote / 12) - 1
+                    // But for display we use: octaveNumber = midiNote / 12
+                    const char* noteNames[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+                    int displayOctave = newMidiNote / 12;
+                    QString noteName = QString("%1%2").arg(noteNames[newMidiNote % 12]).arg(displayOctave);
+                    changeStatus(QString("Note: %1 (MIDI %2) | Velocity: dynamic (X pos)").arg(noteName).arg(newMidiNote));
+                    
+                    event->accept();
+                    return;
+                }
+            }
+        }
+    }
+    
+skipMusicInput:
+    // Manual trigger test with Enter key (Space is used for playback)
+    if((event->nativeScanCode() == 28 || event->nativeScanCode() == 36) && selection.count() > 0) {  // Enter or Numpad Enter
+        foreach(NxObject *object, selection) {
+            if(object->getType() == ObjectsTypeTrigger) {
+                Application::current->execute(QString("%1 %2").arg(COMMAND_TRIG).arg(object->getId()), ExecuteSourceGui);
+            }
+        }
+        changeStatus(QString("Triggered %1 object(s)").arg(selection.count()));
+        event->accept();
+        return;
+    }
 
     NxPoint translation;
     if(event->key() == Qt::Key_Left)

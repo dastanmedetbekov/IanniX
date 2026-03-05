@@ -24,7 +24,7 @@
 #include "nxeasing.h"
 
 const QPixmap NxEasing::getPixmap() const {
-    QPixmap pixmap(128, 128);
+    QPixmap pixmap(128, 128); // Square
     pixmap.fill(Qt::transparent);
     QPainter painter;
     painter.begin(&pixmap);

@@ -509,35 +509,40 @@ void UiInspector::actionMidiApply() {
     int duration = ui->midiDurationSpin->value();
     int channel = ui->midiChannelCombo->currentData().toInt();
     
-    // Build MIDI command with only selected parameters
-    // For parameters not checked, we need to read current values from first selected trigger
-    NxTrigger *firstTrigger = (NxTrigger*)render->getSelection()->first();
-    QString currentMessage = firstTrigger->getMessagePatternsStr();
-    
-    // Parse current MIDI command to get existing values
-    int existingChannel = 1, existingNote = 60, existingVelocity = 100, existingDuration = 500;
-    if(currentMessage.contains("midi://")) {
-        QStringList parts = currentMessage.split(" ", QString::SkipEmptyParts);
-        if(parts.count() >= 5) {
-            existingChannel = parts[1].toInt();
-            existingNote = parts[2].toInt();
-            existingVelocity = parts[3].toInt();
-            existingDuration = parts[4].toInt();
-        }
-    }
-    
-    // Use selected or existing values
-    int finalChannel = ui->midiChannelCheck->isChecked() ? channel : existingChannel;
-    int finalNote = ui->midiNoteCheck->isChecked() ? midiNote : existingNote;
-    int finalVelocity = ui->midiVelocityCheck->isChecked() ? velocity : existingVelocity;
-    int finalDuration = ui->midiDurationCheck->isChecked() ? duration : existingDuration;
-    
-    // Generate and apply setMessage command
-    QString midiCommand = QString("midi://midi_out/note %1 %2 %3 %4")
-        .arg(finalChannel).arg(finalNote).arg(finalVelocity).arg(finalDuration);
-    
     Application::current->pushSnapshot();
-    Application::current->execute(QString("%1 selection 21, %2").arg(COMMAND_MESSAGE).arg(midiCommand), ExecuteSourceGui);
+    
+    // Apply to each trigger individually, preserving its own parameters
+    foreach(const NxObject *object, *(render->getSelection())) {
+        NxTrigger *trigger = (NxTrigger*)object;
+        QString currentMessage = trigger->getMessagePatternsStr();
+        
+        // Parse existing MIDI command
+        int existingChannel = 1, existingNote = 60, existingVelocity = 100, existingDuration = 500;
+        if(currentMessage.contains("midi://")) {
+            QStringList parts = currentMessage.split(" ", QString::SkipEmptyParts);
+            // Format: "interval, midi://midi_out/note channel note velocity duration"
+            // parts[0]=interval, parts[1]=midi://, parts[2]=channel, parts[3]=note, parts[4]=velocity, parts[5]=duration
+            if(parts.count() >= 6) {
+                existingChannel = parts[2].toInt();
+                existingNote = parts[3].toInt();
+                existingVelocity = parts[4].toInt();
+                existingDuration = parts[5].toInt();
+            }
+        }
+        
+        // Use selected or existing values for THIS trigger
+        int finalChannel = ui->midiChannelCheck->isChecked() ? channel : existingChannel;
+        int finalNote = ui->midiNoteCheck->isChecked() ? midiNote : existingNote;
+        int finalVelocity = ui->midiVelocityCheck->isChecked() ? velocity : existingVelocity;
+        int finalDuration = ui->midiDurationCheck->isChecked() ? duration : existingDuration;
+        
+        // Generate and apply setMessage command for THIS trigger
+        QString midiCommand = QString("midi://midi_out/note %1 %2 %3 %4")
+            .arg(finalChannel).arg(finalNote).arg(finalVelocity).arg(finalDuration);
+        
+        Application::current->execute(QString("%1 %2 21, %3")
+            .arg(COMMAND_MESSAGE).arg(trigger->getId()).arg(midiCommand), ExecuteSourceGui);
+    }
     
     needRefresh = true;
 }

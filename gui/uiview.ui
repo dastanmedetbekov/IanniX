@@ -944,7 +944,7 @@ QDialogButtonBox QPushButton {
     <string>Fast rewind|By pressing the button, IanniX will play or pause the score playback. If nothing happened, be sure the score speed is positive!</string>
    </property>
    <property name="shortcut">
-    <string>F</string>
+    <string>Shift+F</string>
    </property>
    <property name="shortcutContext">
     <enum>Qt::ApplicationShortcut</enum>
@@ -1105,7 +1105,7 @@ QDialogButtonBox QPushButton {
     <string>Adds triggers</string>
    </property>
    <property name="statusTip">
-    <string>Triggers|In IanniX vocabulary, a trigger is an event that is fired by cursors. It is very similar to a note in music, but of course IanniX allows you to fire any kind of event, depending on the software linked with your score.\n\nDouble click on a trigger to change the sent messages when fired.\nPress ESC or click again on the toolbar button to stop edition.</string>
+    <string>Triggers|In IanniX vocabulary, a trigger is an event that is fired by cursors. It is very similar to a note in music, but of course IanniX allows you to fire any kind of event, depending on the software linked with your score.\n\nDouble click on a trigger to change the sent messages when fired. Press Enter to manually test selected triggers.\nPress ESC or click again on the toolbar button to stop edition.</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+Shift+T</string>
